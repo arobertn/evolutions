@@ -1,0 +1,1 @@
+DELETE FROM soup WHERE id = 4;
