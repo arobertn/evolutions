@@ -121,6 +121,15 @@ for the database being used (e.g., `psql` for Postgres).  Transactionality is
 therefore under control of the script itself.
 
 
+# Install
+
+While in beta status (version < 1.0), released only on GitHub:
+
+pip3 install https://github.com/arobertn/evolutions/archive/master.tar.gz
+
+Will be released on PyPi once reaches 1.0.
+
+
 # Usage
 
 The tool is invoked via a Python 3 command line script, and should be called
