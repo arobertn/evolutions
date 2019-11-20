@@ -6,8 +6,6 @@ import os, os.path as path, subprocess, sys, unittest
 
 sys.path.append('.')
 
-from evolutions import *
-
 
 class TestEvolutions_MySQL(unittest.TestCase):
 
@@ -62,7 +60,8 @@ class TestEvolutions_MySQL(unittest.TestCase):
 
     # Change stage 1, but run in prod mode, causing abort
     def test_case_3a(self):
-        ret = subprocess.call(self.db_cmd + ['evolutions/test/case_3', '--prod'])
+        ret = subprocess.call(self.db_cmd + ['evolutions/test/case_3',
+                                             '--prod'])
         self.assertEqual(ret, 1)
         self.do_db_check("SELECT COUNT(*) FROM SOUP;", "4")
 
@@ -88,8 +87,23 @@ class TestEvolutions_MySQL(unittest.TestCase):
 
     # Add stage 5 but skip running it
     def test_case_7(self):
-        subprocess.check_call(self.db_cmd + ['evolutions/test/case_7', '--skip=5'])
+        subprocess.check_call(self.db_cmd + ['evolutions/test/case_7',
+                                             '--skip=5'])
         self.do_db_check("SELECT COUNT(*) FROM SOUP;", "5")
+        self.do_db_check("SELECT COUNT(*) FROM evolutions;", "5")
+        # Skip not needed after that
+        subprocess.check_call(self.db_cmd + ['evolutions/test/case_7'])
+        self.do_db_check("SELECT COUNT(*) FROM evolutions;", "5")
+
+    # Modify stage 3, but skip running it, in prod mode
+    def test_case_8(self):
+        subprocess.check_call(self.db_cmd + ['evolutions/test/case_8',
+                                             '--skip=3', '--prod'])
+        self.do_db_check("SELECT COUNT(*) FROM SOUP;", "5")
+        self.do_db_check("SELECT COUNT(*) FROM evolutions;", "5")
+        # Skip not needed after that
+        subprocess.check_call(self.db_cmd + ['evolutions/test/case_8',
+                                             '--prod'])
         self.do_db_check("SELECT COUNT(*) FROM evolutions;", "5")
 
 

@@ -158,7 +158,7 @@ def scan_dir_stages(ev_dir):
 
 def scan_db_stages(dbConn):
     res = dbConn.execute('''
-        SELECT id, apply_hash, revert_hash, apply_script, revert_script, applied_at FROM evolutions;
+        SELECT id, apply_hash, revert_hash, apply_script, revert_script, applied_at FROM evolutions ORDER BY id ASC;
     ''')
 
     stages = []
@@ -230,21 +230,21 @@ def update_for_skips(dir_stages, db_stages, skip, dbConn):
     dir_i = 0
     db_i = 0
     for idx in sorted(list(skip)):
+        # Find idx in dir and db
         while dir_i < dir_len:
             if dir_stages[dir_i].idx == idx:
                 break
             dir_i += 1
-            if dir_i == dir_len:
-                raise Exception("Skip requested for missing file: %d.sql"
-                                % (idx))
-            while db_i < db_len:
-                if db_stages[db_i].idx == idx:
-                    # update
-                    dir_stages[dir_i].applied_at = db_stages[db_i].applied_at
-                    db_stages[db_i] = dir_stages[dir_i]
-                    update_db(db_stages[db_i], dbConn)
-                    break
-                db_i += 1
+        if dir_i == dir_len:
+            raise Exception("Skip requested for missing file: %d.sql" % (idx))
+        while db_i < db_len:
+            if db_stages[db_i].idx == idx:
+                # update
+                dir_stages[dir_i].applied_at = db_stages[db_i].applied_at
+                db_stages[db_i] = dir_stages[dir_i]
+                update_db(db_stages[db_i], dbConn)
+                break
+            db_i += 1
             # If not found, will get added later under evolve() in sequence
     return db_stages
 
