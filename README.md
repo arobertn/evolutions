@@ -123,11 +123,11 @@ therefore under control of the script itself.
 
 # Install
 
-While in beta status (version < 1.0), released only on GitHub:
+    pip3 install evolutions
 
-pip3 install https://github.com/arobertn/evolutions/archive/master.tar.gz
+-or- to get development version:
 
-Will be released on PyPi once reaches 1.0.
+    pip3 install https://github.com/arobertn/evolutions/archive/master.tar.gz
 
 
 # Usage
