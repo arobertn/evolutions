@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 
+from os import path
 from setuptools import setup
 
+this_dir = path.abspath(path.dirname(__file__))
+try:
+    with open(path.join(this_dir, 'README.md')) as f:
+        long_desc_content = f.read()
+except IOError:
+    long_desc_content = ''
+
 setup(name='evolutions',
-      description='Database migrations',
-      long_description='Tool for managing relational database schema evolution and data migration, modeled on the Scala/Java play-evolutions library.  Minimalist approach supporting only linear history and pure SQL migrations that works and stays out of your way in development and production environments.',
+      description='App framework agnostic pure SQL incremental database migrations tool modeled after play-evolutions',
+      long_description=long_desc_content,
+      long_description_content_type='text/markdown',
       url="https://github.com/arobertn/evolutions",
       author="Adrian Robert",
       author_email="arobert@interstitiality.net",
-      version='0.8',
+      version='0.8.1',
       license='BSD-3-Clause',
       platforms=['any'],
       classifiers=[
