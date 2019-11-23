@@ -15,7 +15,8 @@ class TestEvolutions_MySQL(unittest.TestCase):
         db_name = 'evtest'
         db_user = 'evtestuser'
         db_pass = 'evtestpass'
-        cls.db_cmd = ['./evolutions/evolutions.py', 'mysql://localhost:3306/' + db_name,
+        cls.db_cmd = ['./evolutions/evolutions.py',
+                      'mysql://localhost:3306/' + db_name,
                       db_user, db_pass]
         cls.db_check_cmd = ['mysql', '-u', db_user,
                             '--password=' + db_pass, db_name,
@@ -31,7 +32,7 @@ class TestEvolutions_MySQL(unittest.TestCase):
     def do_db_check(self, query, expected_result=None):
         db_proc = subprocess.Popen(self.db_check_cmd,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
+                                   stderr=sys.stderr,
                                    stdin=subprocess.PIPE)
         output, _ = db_proc.communicate(query.encode('utf-8'))
         if db_proc.returncode != 0:

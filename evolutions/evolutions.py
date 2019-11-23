@@ -11,10 +11,6 @@ import glob, hashlib, logging, os.path as path, re, subprocess, sys
 logging.basicConfig(level='INFO', format='evolutions: %(message)s')
 logger = logging.getLogger()
 
-def excepthook(type, value, traceback):
-    print('evolutions: ERROR: ' + str(value), file=sys.stderr)
-sys.excepthook = excepthook
-
 
 # Holds a DB connection and info it was created from
 class DBConn:
@@ -82,14 +78,14 @@ def get_connection(url, user, pw):
         import mysql.connector
         conn = mysql.connector.connect(user=user, password=pw,
                                        host=host, port=port, database=db_name,
-                                       charset='utf8', autocommit=True)
+                                       charset='utf8', autocommit=False)
         cmd = ['mysql', '-u', user, '--password='+pw, db_name]
         param = '%s'
     elif db_type == 'postgresql':
         import psycopg2
         conn = psycopg2.connect(user=user, password=pw,
                                 host=host, port=port, database=db_name)
-        conn.set_session(autocommit=True)
+        conn.set_session(autocommit=False)
         cmd = ['psql', '-h', 'localhost', '-U', user, db_name]
         param = '%s'
     elif db_type == 'sqlite':
@@ -116,6 +112,14 @@ def connect_and_ensure(url, user, pw):
           apply_script   TEXT,
           revert_script  TEXT )
     ''')
+
+    # We lock access to evolutions table to prevent concurrent runs of
+    # evolutions from interfering. Not supported for sqlite since only
+    # full database lock is supported, but for same reason not an issue there.
+    if dbConn.db_type == 'mysql':
+        dbConn.execute("LOCK TABLES evolutions WRITE")
+    elif dbConn.db_type == 'postgresql':
+        dbConn.execute("LOCK TABLE evolutions IN ACCESS EXCLUSIVE MODE NOWAIT")
     return dbConn
 
 
@@ -289,6 +293,27 @@ def usage(invoked_name):
     return 1
 
 
+def do_evolutions(ev_dir, skip, prod_mode, dbConn):
+
+    # 1. Scan dir files in order, compute hashes (hashlib.sha1().hexdigest())
+    dir_stages = check_stages(scan_dir_stages(ev_dir), ev_dir)
+    if not dir_stages:
+        raise Exception("No evolutions found in dir '" + ev_dir + "'")
+    logger.info("Got %d stages from dir '%s'", len(dir_stages), ev_dir)
+    logger.debug('\n\t%s', '\n\t'.join(map(str, dir_stages)))
+
+    # 2. Scan DB files
+    db_stages = check_stages(scan_db_stages(dbConn), 'db')
+    logger.info("Got %d stages from DB '%s'", len(db_stages), dbConn.db_name)
+    logger.debug('\n\t%s', '\n'.join(map(str, db_stages)))
+
+    # 3. Handle skips
+    db_stages = update_for_skips(dir_stages, db_stages, skip, dbConn)
+
+    # 4. Evolve
+    return evolve(dir_stages, db_stages, skip, prod_mode, dbConn)
+
+
 def main(args):
 
     # Arg processing
@@ -310,30 +335,22 @@ def main(args):
         else:
             return usage(args[0])
 
-    # 1. Connect to DB and ensure evolutions table, begin transaction
+    # Connect to DB and ensure evolutions table
     dbConn = connect_and_ensure(db_url, user, pw)
 
-    # 2. Scan dir files in order, compute hashes (hashlib.sha1().hexdigest())
-    dir_stages = check_stages(scan_dir_stages(ev_dir), ev_dir)
-    if not dir_stages:
-        raise Exception("No evolutions found in dir '" + ev_dir + "'")
-    logger.info("Got %d stages from dir '%s'", len(dir_stages), ev_dir)
-    logger.debug('\n\t%s', '\n\t'.join(map(str, dir_stages)))
+    ret = 0
+    try:
+        upd_stages = do_evolutions(ev_dir, skip, prod_mode, dbConn)
+        logger.info('Completed with %d stages.', len(upd_stages))
+    except Exception as e:
+        logger.warning('Evolutions failed, check output and database;\n'
+                       + '    exception was: %s', str(e))
+        ret = 1
+    finally:
+        dbConn.conn.commit()
+        dbConn.conn.close()
 
-    # 3. Scan DB files
-    db_stages = check_stages(scan_db_stages(dbConn), 'db')
-    logger.info("Got %d stages from DB '%s'", len(db_stages), dbConn.db_name)
-    logger.debug('\n\t%s', '\n'.join(map(str, db_stages)))
-
-    # Handle skips
-    db_stages = update_for_skips(dir_stages, db_stages, skip, dbConn)
-
-    # 5. Evolve
-    upd_stages = evolve(dir_stages, db_stages, skip, prod_mode, dbConn)
-
-    dbConn.conn.close()
-    logger.info('Completed with %d stages.', len(upd_stages))
-    return 0
+    return ret
 
 
 if __name__ == "__main__":

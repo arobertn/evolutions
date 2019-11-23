@@ -120,6 +120,11 @@ The evolutions scripts themselves are run by invoking the command line client
 for the database being used (e.g., `psql` for Postgres).  Transactionality is
 therefore under control of the script itself.
 
+When using MySQL or PostgreSQL (but not Sqlite), the evolutions table is
+locked when the script starts, so any parallel instances of the script started
+up will wait until the first one completes, and then will find the evolutions
+already run and do nothing.
+
 
 # Install
 
