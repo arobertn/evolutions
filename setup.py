@@ -19,6 +19,7 @@ setup(name='evolutions',
       author_email="arobert@interstitiality.net",
       version='0.8.2',
       license='BSD-3-Clause',
+      python_requires='>=3',
       platforms=['any'],
       classifiers=[
         # How mature is this project? Common values are
