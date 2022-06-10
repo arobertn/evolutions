@@ -86,7 +86,7 @@ def get_connection(url, user, pw):
         conn = psycopg2.connect(user=user, password=pw,
                                 host=host, port=port, database=db_name)
         conn.set_session(autocommit=False)
-        cmd = ['psql', '-h', 'localhost', '-U', user, db_name]
+        cmd = ['psql', '-h', host or 'localhost', '-U', user, db_name]
         param = '%s'
     elif db_type == 'sqlite':
         import sqlite3
