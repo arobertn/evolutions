@@ -83,12 +83,13 @@ def get_connection(url, user, pw):
         cmd = ['mysql', '-u', user, '--password='+pw, db_name]
         param = '%s'
     elif db_type == 'postgresql':
-        import psycopg2
+        import psycopg2, os
         port = port or '5432'; # String because that's what match would have yielded
         conn = psycopg2.connect(user=user, password=pw,
                                 host=host, port=port, database=db_name)
         conn.set_session(autocommit=False)
-        cmd = ['psql', '-h', host or 'localhost', '-U', user, db_name]
+        os.environ['PGPASSWORD'] = pw # Password via env ins
+        cmd = ['psql', '-h', host or 'localhost', '-p', port, '-U', user, db_name]
         param = '%s'
     elif db_type == 'sqlite':
         import sqlite3
