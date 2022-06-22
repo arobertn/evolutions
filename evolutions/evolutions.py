@@ -189,12 +189,16 @@ def check_stages(stages, src):
 def execute_script(idx, script_str, dbConn):
     db_proc = subprocess.Popen(dbConn.cmd,
                                stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
+                               stderr=subprocess.PIPE,
                                stdin=subprocess.PIPE)
-    output, _ = db_proc.communicate(script_str.encode('utf-8'))
-    if db_proc.returncode != 0:
-        raise Exception('evolutions: script ' + str(idx) + ' failed: '
-                        + output.decode('utf-8'))
+    output, error = db_proc.communicate(script_str.encode('utf-8'))
+    # Note: Errors can happen with the return value from psql utility still being zero.
+    # Therefore, explicitly look for errors in collected stderr content.
+    if (db_proc.returncode != 0) or (error):
+        raise Exception('evolutions: script ' + str(idx) + "\n\t" +
+                        output.decode('utf-8').replace("\n", "\n\t") + "\n\t" +
+                        error.decode('utf-8').replace("\n", "\n\t")
+        )
 
 
 # Executes given stage downs, and removes stage from db
