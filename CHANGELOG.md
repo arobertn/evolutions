@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.3
+
+2022-12-27
+
+- psql improvements: host/post handling, better detection of SQL failures
+
 ## 0.8.2
 
 2019-11-26
