@@ -61,12 +61,12 @@ def read_textfile(fname):
 
 # Return DBConn wrapping DB-API2 conn (https://python.org/dev/peps/pep-0249/)
 def get_connection(url, user, pw):
-    url_re = re.compile(r'([^:]+)://([^:]+):([0-9]+)/(.+)')
+    url_re = re.compile(r'([^:]+)://([^:]+)(:([0-9]+))?/(.+)')
     file_re = re.compile(r'([^:]+):(/.+)')
     match = url_re.match(url)
     if match:
         db_type, host, port, db_name = (match.group(1), match.group(2),
-                                        match.group(3), match.group(4))
+                                        match.group(4), match.group(5))
     else:
         match = file_re.match(url)
         if match:
@@ -76,17 +76,20 @@ def get_connection(url, user, pw):
             raise Exception("Unrecognized DB URL format: '" + url + "'")
     if db_type == 'mysql':
         import mysql.connector
+        port = port or '3306'; # String because that's what match would have yielded
         conn = mysql.connector.connect(user=user, password=pw,
                                        host=host, port=port, database=db_name,
                                        charset='utf8', autocommit=False)
         cmd = ['mysql', '-u', user, '--password='+pw, db_name]
         param = '%s'
     elif db_type == 'postgresql':
-        import psycopg2
+        import psycopg2, os
+        port = port or '5432'; # String because that's what match would have yielded
         conn = psycopg2.connect(user=user, password=pw,
                                 host=host, port=port, database=db_name)
         conn.set_session(autocommit=False)
-        cmd = ['psql', '-h', 'localhost', '-U', user, db_name]
+        os.environ['PGPASSWORD'] = pw # Password via env ins
+        cmd = ['psql', '-h', host or 'localhost', '-p', port, '-U', user, db_name]
         param = '%s'
     elif db_type == 'sqlite':
         import sqlite3
@@ -186,12 +189,16 @@ def check_stages(stages, src):
 def execute_script(idx, script_str, dbConn):
     db_proc = subprocess.Popen(dbConn.cmd,
                                stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
+                               stderr=subprocess.PIPE,
                                stdin=subprocess.PIPE)
-    output, _ = db_proc.communicate(script_str.encode('utf-8'))
-    if db_proc.returncode != 0:
-        raise Exception('evolutions: script ' + str(idx) + ' failed: '
-                        + output.decode('utf-8'))
+    output, error = db_proc.communicate(script_str.encode('utf-8'))
+    # Note: Errors can happen with the return value from psql utility still being zero.
+    # Therefore, explicitly look for errors in collected stderr content.
+    if (db_proc.returncode != 0) or (error):
+        raise Exception('evolutions: script ' + str(idx) + "\n\t" +
+                        output.decode('utf-8').replace("\n", "\n\t") + "\n\t" +
+                        error.decode('utf-8').replace("\n", "\n\t")
+        )
 
 
 # Executes given stage downs, and removes stage from db
